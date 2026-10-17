@@ -28,121 +28,319 @@ jobs:
         run: pip install requests beautifulsoup4 pillow
 
       - name: Generate contrib-heatmap.svg, info-card.svg, and hamoi1-ascii.svg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python3 - << 'EOF'
           import glob
+          import os
           import re
+          from collections import Counter
           from datetime import datetime, timedelta
           from html import escape
           import requests
           from bs4 import BeautifulSoup
-          from PIL import Image, ImageOps
+          from PIL import Image, ImageEnhance, ImageOps
 
           USERNAME = "Hamoi1"
 
-          # ==========================================
-          # 1. GENERATE info-card.svg (Neofetch Card)
-          # ==========================================
+          LANG_COLORS = {
+              "PHP": "#ff2d20",
+              "Blade": "#f05340",
+              "JavaScript": "#f7df1e",
+              "TypeScript": "#3178c6",
+              "Vue": "#41b883",
+              "CSS": "#38bdf8",
+              "HTML": "#e34c26",
+              "Python": "#3572A5",
+              "Dart": "#00B4AB",
+          }
+
+          # =========================================================
+          # 0. FETCH LIVE GITHUB TELEMETRY (REPOS, FOLLOWERS, LANGS)
+          # =========================================================
+          def fetch_profile_telemetry():
+              meta = {
+                  "public_repos": 25,
+                  "followers": 15,
+                  "total_stars": 10,
+                  "languages": [
+                      {"name": "PHP / Laravel", "pct": 54, "color": "#ff2d20"},
+                      {"name": "JS / Alpine", "pct": 20, "color": "#f7df1e"},
+                      {"name": "Tailwind / CSS", "pct": 14, "color": "#38bdf8"},
+                      {"name": "Python", "pct": 7, "color": "#3572A5"},
+                      {"name": "Other", "pct": 5, "color": "#8b949e"},
+                  ],
+              }
+              headers = {"User-Agent": "Mozilla/5.0 (GitHub-Profile-SVG-Generator)"}
+              token = os.getenv("GITHUB_TOKEN")
+              if token:
+                  headers["Authorization"] = f"Bearer {token}"
+
+              try:
+                  u_resp = requests.get(f"https://api.github.com/users/{USERNAME}", headers=headers, timeout=15)
+                  if u_resp.ok:
+                      u_data = u_resp.json()
+                      meta["public_repos"] = u_data.get("public_repos", meta["public_repos"])
+                      meta["followers"] = u_data.get("followers", meta["followers"])
+
+                  r_resp = requests.get(
+                      f"https://api.github.com/users/{USERNAME}/repos?per_page=100&sort=updated",
+                      headers=headers,
+                      timeout=15,
+                  )
+                  if r_resp.ok:
+                      repos = r_resp.json()
+                      meta["total_stars"] = sum(
+                          r.get("stargazers_count", 0) for r in repos if isinstance(r, dict)
+                      )
+                      lang_counts = Counter(
+                          r.get("language")
+                          for r in repos
+                          if isinstance(r, dict) and r.get("language")
+                      )
+                      total_lang = sum(lang_counts.values())
+                      if total_lang > 0:
+                          top = lang_counts.most_common(4)
+                          langs = []
+                          used_pct = 0
+                          for name, cnt in top:
+                              pct = max(5, round((cnt / total_lang) * 100))
+                              used_pct += pct
+                              langs.append({
+                                  "name": name,
+                                  "pct": pct,
+                                  "color": LANG_COLORS.get(name, "#58a6ff"),
+                              })
+                          if used_pct < 100:
+                              langs.append({
+                                  "name": "Other",
+                                  "pct": 100 - used_pct,
+                                  "color": "#8b949e",
+                              })
+                          meta["languages"] = langs
+              except Exception as e:
+                  print("Telemetry warning (using fallback):", e)
+
+              return meta
+
+          # =========================================================
+          # 1. GENERATE info-card.svg (PRO TUI NEOFETCH WORKSPACE)
+          # =========================================================
           ROWS = [
-              ("Name", "Muhammad Esmael"),
-              ("Role", "Full-Stack Developer | Laravel Developer"),
+              ("Developer", "Muhammad Esmael (Hamoi1)"),
+              ("Role", "Full-Stack & Laravel Developer"),
               ("Backend", "PHP · Laravel · Livewire · Python · MySQL"),
               ("Frontend", "HTML5 · CSS3 · Tailwind CSS · JS · Alpine.js"),
-              ("Tools", "Git · GitHub · Postman · VS Code · Docker"),
-              ("Packages", "laravel-fib-integration · livewire-state-manager"),
+              ("Tooling", "Git · GitHub · Postman · VS Code · Docker"),
               ("Contact", "ihama9728@gmail.com · t.me/Mohammed_devv"),
           ]
 
-          HIGHLIGHTS = [
-              "› Turning ideas into functional code",
-              "› Building scalable web solutions",
-              "› Passionate about clean architecture",
+          TAGLINES = [
+              "Turning ideas into functional code...",
+              "Building scalable web solutions...",
+              "Passionate about clean architecture...",
           ]
 
-          def build_info_card():
-              width, height = 490, 360
-              lines_svg = []
-              delay = 0.12
+          def build_info_card(meta):
+              width, height = 490, 430
+              languages = meta["languages"]
+              public_repos = meta["public_repos"]
+              followers = meta["followers"]
+              lines = []
+              delay = 0.08
 
-              lines_svg.append(
-                  '<circle cx="24" cy="24" r="5" fill="#ff5f56"/>'
-                  '<circle cx="40" cy="24" r="5" fill="#ffbd2e"/>'
-                  '<circle cx="56" cy="24" r="5" fill="#27c93f"/>'
-                  '<text x="74" y="28" fill="#8b949e" font-size="11.5px">muhammad@hamoi1: ~ (zsh)</text>'
-              )
-
-              lines_svg.append(
-                  f'<text x="24" y="60" class="line" style="animation-delay:{delay:.2f}s">'
-                  f'<tspan fill="#39d353" font-weight="700">muhammad</tspan>'
-                  f'<tspan fill="#8b949e">@</tspan>'
-                  f'<tspan fill="#39d353" font-weight="700">hamoi1</tspan>'
+              # Shell command header
+              lines.append(
+                  f'<text x="22" y="54" class="line" style="animation-delay:{delay:.2f}s">'
+                  f'<tspan fill="#39d353" font-weight="700">➜</tspan> '
+                  f'<tspan fill="#58a6ff" font-weight="700">~</tspan> '
+                  f'<tspan fill="#c9d1d9">neofetch --user hamoi1 --all</tspan>'
                   f'</text>'
               )
-              delay += 0.08
-              lines_svg.append(
-                  f'<text x="24" y="76" class="line" fill="#30363d" style="animation-delay:{delay:.2f}s">'
-                  f'──────────────────────────────────────────</text>'
-              )
 
-              y = 100
-              for key, val in ROWS:
-                  delay += 0.11
-                  lines_svg.append(
-                      f'<text x="24" y="{y}" class="line" style="animation-delay:{delay:.2f}s">'
-                      f'<tspan fill="#58a6ff" font-weight="600">{escape(key)}:</tspan> '
-                      f'<tspan fill="#c9d1d9">{escape(val)}</tspan>'
+              # Looping SMIL Typewriter Banner (Cycles your 3 taglines automatically)
+              delay += 0.08
+              cycle_svg = []
+              for i, text in enumerate(TAGLINES):
+                  cycle_svg.append(
+                      f'<text x="34" y="81" fill="#58a6ff" font-weight="600" opacity="0">'
+                      f'› {escape(text)}'
+                      f'<animate attributeName="opacity" values="0;1;1;0;0" '
+                      f'keyTimes="0;0.03;0.30;0.33;1" dur="12s" begin="{i * 4}s" repeatCount="indefinite" />'
                       f'</text>'
                   )
-                  y += 22
 
-              y += 6
-              delay += 0.11
-              lines_svg.append(
-                  f'<text x="24" y="{y}" class="line" fill="#39d353" font-weight="600" '
-                  f'style="animation-delay:{delay:.2f}s">Focus &amp; Philosophy</text>'
+              lines.append(
+                  f'<g class="line" style="animation-delay:{delay:.2f}s">'
+                  f'<rect x="22" y="64" width="{width - 44}" height="26" rx="6" fill="#121820" stroke="#21262d" stroke-width="1"/>'
+                  f'{"".join(cycle_svg)}'
+                  f'</g>'
               )
-              y += 20
 
-              for item in HIGHLIGHTS:
-                  delay += 0.11
-                  lines_svg.append(
-                      f'<text x="24" y="{y}" class="line" fill="#8b949e" '
-                      f'style="animation-delay:{delay:.2f}s">{escape(item)}</text>'
+              # Aligned Key-Value Rows
+              y = 110
+              for key, val in ROWS:
+                  delay += 0.08
+                  padded_key = f"{key:<9}"
+                  lines.append(
+                      f'<text x="22" y="{y}" class="line" style="animation-delay:{delay:.2f}s" xml:space="preserve">'
+                      f'<tspan fill="#58a6ff" font-weight="600">{escape(padded_key)}</tspan>'
+                      f'<tspan fill="#484f58">│ </tspan>'
+                      f'<tspan fill="#e6edf3">{escape(val)}</tspan>'
+                      f'</text>'
                   )
-                  y += 19
+                  y += 20
 
-              swatches = ["#161b22", "#ff7b72", "#39d353", "#d29922", "#58a6ff", "#bc8cff", "#39c5cf", "#c9d1d9"]
-              delay += 0.14
-              swatch_rects = "".join(
-                  f'<rect x="{24 + i * 22}" y="{height - 26}" width="16" height="10" rx="2" fill="{c}" />'
-                  for i, c in enumerate(swatches)
+              # Open-Source Composer Packages TUI Box
+              y += 2
+              delay += 0.10
+              lines.append(
+                  f'<g class="line" style="animation-delay:{delay:.2f}s">'
+                  f'<rect x="22" y="{y}" width="{width - 44}" height="64" rx="8" fill="#121820" stroke="#21262d" stroke-width="1"/>'
+                  f'<text x="34" y="{y + 18}" fill="#39d353" font-size="10px" font-weight="700">OPEN-SOURCE PACKAGES (PACKAGIST / GITHUB)</text>'
+                  f'<text x="34" y="{y + 37}" font-size="11.2px">'
+                  f'<tspan fill="#8b949e">$</tspan> <tspan fill="#d2a8ff">composer</tspan> <tspan fill="#c9d1d9">require</tspan> '
+                  f'<tspan fill="#79c0ff" font-weight="600">hamoi1/laravel-fib-integration</tspan></text>'
+                  f'<text x="34" y="{y + 54}" font-size="11.2px">'
+                  f'<tspan fill="#8b949e">$</tspan> <tspan fill="#d2a8ff">composer</tspan> <tspan fill="#c9d1d9">require</tspan> '
+                  f'<tspan fill="#79c0ff" font-weight="600">hamoi1/livewire-state-manager</tspan></text>'
+                  f'</g>'
               )
-              lines_svg.append(f'<g class="line" style="animation-delay:{delay:.2f}s">{swatch_rects}</g>')
+
+              # Animated Language Distribution Bar
+              y += 82
+              delay += 0.10
+              lines.append(
+                  f'<text x="22" y="{y}" class="line" fill="#39d353" font-weight="600" '
+                  f'style="animation-delay:{delay:.2f}s">Stack Telemetry</text>'
+                  f'<text x="{width - 22}" y="{y}" text-anchor="end" class="line" fill="#8b949e" font-size="10.5px" '
+                  f'style="animation-delay:{delay:.2f}s">{public_repos} Public Repos · {followers} Followers</text>'
+              )
+
+              bar_y = y + 8
+              bar_width = width - 44
+              curr_x = 22.0
+              bar_segments = []
+              legend_items = []
+              legend_x = 22
+
+              for item in languages:
+                  name = item["name"]
+                  pct = item["pct"]
+                  color = item["color"]
+                  seg_w = max(4.0, round((pct / 100.0) * bar_width, 1))
+                  bar_segments.append(
+                      f'<rect x="{curr_x:.1f}" y="{bar_y}" width="{seg_w:.1f}" height="8" fill="{color}" />'
+                  )
+                  curr_x += seg_w
+
+                  legend_items.append(
+                      f'<circle cx="{legend_x + 4}" cy="{bar_y + 21}" r="3.8" fill="{color}" />'
+                      f'<text x="{legend_x + 11}" y="{bar_y + 25}" font-size="10px" fill="#8b949e">'
+                      f'{escape(name)} <tspan fill="#c9d1d9">{pct}%</tspan></text>'
+                  )
+                  legend_x += 92 if len(name) > 8 else 72
+
+              delay += 0.10
+              lines.append(
+                  f'<g class="line" style="animation-delay:{delay:.2f}s">'
+                  f'<clipPath id="bar-clip"><rect x="22" y="{bar_y}" width="0" height="8" rx="4">'
+                  f'<animate attributeName="width" from="0" to="{bar_width}" begin="{delay:.2f}s" dur="0.85s" fill="freeze" />'
+                  f'</rect></clipPath>'
+                  f'<rect x="22" y="{bar_y}" width="{bar_width}" height="8" rx="4" fill="#161b22" />'
+                  f'<g clip-path="url(#bar-clip)">{"".join(bar_segments)}</g>'
+                  f'{"".join(legend_items)}'
+                  f'</g>'
+              )
+
+              # Live Prompt with Blinking Block Cursor
+              prompt_y = height - 36
+              delay += 0.12
+              lines.append(
+                  f'<text x="22" y="{prompt_y}" class="line" style="animation-delay:{delay:.2f}s">'
+                  f'<tspan fill="#39d353" font-weight="700">➜</tspan> '
+                  f'<tspan fill="#58a6ff" font-weight="700">~</tspan> '
+                  f'<tspan fill="#c9d1d9">php artisan optimize &amp;&amp; npm run build</tspan> '
+                  f'<tspan class="cursor" fill="#39d353">█</tspan>'
+                  f'</text>'
+              )
 
               svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+            <defs>
+              <linearGradient id="card-bg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#141b24"/>
+                <stop offset="100%" stop-color="#0d1117"/>
+              </linearGradient>
+            </defs>
             <style>
               text {{
                 font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-                font-size: 12.2px;
+                font-size: 11.8px;
               }}
               .line {{
                 opacity: 0;
-                transform: translateY(6px);
-                animation: fadeSlide 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+                transform: translateY(5px);
+                animation: fadeSlide 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+              }}
+              .cursor {{
+                animation: blink 1s step-end infinite;
               }}
               @keyframes fadeSlide {{
                 to {{ opacity: 1; transform: translateY(0); }}
               }}
+              @keyframes blink {{
+                0%, 100% {{ opacity: 1; }}
+                50% {{ opacity: 0; }}
+              }}
             </style>
-            <rect width="{width}" height="{height}" rx="10" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
-            {"".join(lines_svg)}
+            <rect width="{width}" height="{height}" rx="12" fill="url(#card-bg)" stroke="#30363d" stroke-width="1"/>
+            <path d="M 1 12 Q 1 1 12 1 L {width - 12} 1 Q {width - 1} 1 {width - 1} 12 L {width - 1} 32 L 1 32 Z" fill="#161b22"/>
+            <line x1="1" y1="32" x2="{width - 1}" y2="32" stroke="#30363d" stroke-width="1"/>
+            <circle cx="18" cy="16" r="5" fill="#ff5f56"/>
+            <circle cx="34" cy="16" r="5" fill="#ffbd2e"/>
+            <circle cx="50" cy="16" r="5" fill="#27c93f"/>
+            <text x="{width // 2}" y="20" text-anchor="middle" fill="#8b949e" font-size="11px">muhammad@hamoi1: ~ (zsh)</text>
+            {"".join(lines)}
+            <path d="M 1 {height - 22} L {width - 1} {height - 22} L {width - 1} {height - 12} Q {width - 1} {height - 1} {width - 12} {height - 1} L 12 {height - 1} Q 1 {height - 1} 1 {height - 12} Z" fill="#161b22"/>
+            <line x1="1" y1="{height - 22}" x2="{width - 1}" y2="{height - 22}" stroke="#30363d" stroke-width="1"/>
+            <rect x="1" y="{height - 21}" width="64" height="20" rx="2" fill="#238636"/>
+            <text x="33" y="{height - 7}" text-anchor="middle" fill="#ffffff" font-size="10px" font-weight="700">NORMAL</text>
+            <text x="76" y="{height - 7}" fill="#8b949e" font-size="10px">0:whoami*  1:laravel  2:packages</text>
+            <text x="{width - 14}" y="{height - 7}" text-anchor="end" fill="#58a6ff" font-size="10px">UTF-8 │ PHP 8.x</text>
           </svg>'''
               with open("info-card.svg", "w", encoding="utf-8") as f:
                   f.write(svg)
 
-          # ==========================================
-          # 2. GENERATE contrib-heatmap.svg
-          # ==========================================
+          # =========================================================
+          # 2. GENERATE contrib-heatmap.svg (MATRIX + 30D SPARKLINE)
+          # =========================================================
+          def build_sparkline(days, x0, y0, w, h):
+              recent = days[-30:] if len(days) >= 30 else days
+              if not recent:
+                  return ""
+              max_c = max(max(d.get("count", 0) for d in recent), 4)
+              pts = []
+              for i, d in enumerate(recent):
+                  px = x0 + (i / max(len(recent) - 1, 1)) * w
+                  py = (y0 + h) - (d.get("count", 0) / max_c) * (h - 14) - 4
+                  pts.append((px, py))
+              poly_points = " ".join(f"{px:.1f},{py:.1f}" for px, py in pts)
+              area_points = f"{x0:.1f},{y0 + h:.1f} " + poly_points + f" {x0 + w:.1f},{y0 + h:.1f}"
+              last_x, last_y = pts[-1]
+              return f'''
+              <g class="kpi" style="animation-delay:0.75s">
+                <rect x="{x0 - 10}" y="{y0 - 16}" width="{w + 20}" height="{h + 24}" rx="8" fill="#121820" stroke="#21262d" stroke-width="1"/>
+                <text x="{x0}" y="{y0 - 3}" fill="#8b949e" font-size="9px" font-weight="600">LAST 30 DAYS PULSE</text>
+                <polygon points="{area_points}" fill="url(#spark-grad)" />
+                <polyline points="{poly_points}" fill="none" stroke="#39d353" stroke-width="1.8"
+                          stroke-linecap="round" stroke-linejoin="round"
+                          stroke-dasharray="400" stroke-dashoffset="400">
+                  <animate attributeName="stroke-dashoffset" from="400" to="0" begin="0.8s" dur="1.4s" fill="freeze" />
+                </polyline>
+                <circle cx="{last_x:.1f}" cy="{last_y:.1f}" r="3" fill="#69f0a0" filter="url(#neon-glow)" />
+              </g>'''
+
           def build_heatmap():
               url = f"https://github.com/users/{USERNAME}/contributions"
               headers = {"User-Agent": "Mozilla/5.0"}
@@ -165,7 +363,7 @@ jobs:
                                   count = int(m.group(1))
                       level = int(level_str)
                       if count == 0 and level > 0:
-                          count = level
+                          count = level * 2
                       days.append({"date": date_str, "level": level, "count": count})
               except Exception as e:
                   print("Heatmap fetch warning:", e)
@@ -195,79 +393,138 @@ jobs:
                       break
 
               PALETTE = ["#161b22", "#0e4429", "#006d32", "#26a641", "#39d353", "#69f0a0"]
-              cell_size, gap = 12, 3
+              MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+              width, height = 860, 270
+              cell_size, gap = 11.5, 3
               step = cell_size + gap
-              pad_x, pad_y = 32, 26
-              width, height = 860, 172
+              grid_x, grid_y = 52, 64
 
               rects = []
+              month_labels = []
+              seen_months = set()
               week = 0
+
               for idx, day in enumerate(days):
                   dt = datetime.strptime(day["date"], "%Y-%m-%d")
                   dow = (dt.weekday() + 1) % 7
                   if idx > 0 and dow == 0:
                       week += 1
-                  x = pad_x + week * step
-                  y = pad_y + dow * step
+                  x = grid_x + week * step
+                  y = grid_y + dow * step
+
+                  ym = (dt.year, dt.month)
+                  if ym not in seen_months and dow == 0 and week < 51:
+                      seen_months.add(ym)
+                      month_labels.append(
+                          f'<text x="{x:.1f}" y="{grid_y - 8}" fill="#8b949e" font-size="10px">{MONTHS[dt.month - 1]}</text>'
+                      )
+
                   level = min(max(day.get("level", 0), 0), len(PALETTE) - 1)
                   color = PALETTE[level]
-                  delay = (week * 0.016) + (dow * 0.025)
+                  delay = (week * 0.013) + (dow * 0.02)
+                  glow_attr = ' filter="url(#neon-glow)"' if level >= 4 else ""
                   rects.append(
-                      f'<rect class="cell" x="{x}" y="{y}" width="{cell_size}" height="{cell_size}" '
-                      f'rx="2.5" fill="{color}" style="animation-delay:{delay:.2f}s" />'
+                      f'<rect class="cell" x="{x:.1f}" y="{y:.1f}" width="{cell_size}" height="{cell_size}" '
+                      f'rx="2.5" fill="{color}"{glow_attr} style="animation-delay:{delay:.2f}s" />'
                   )
 
-              legend_x = width - 155
-              footer_y = height - 20
+              day_labels = [
+                  f'<text x="22" y="{grid_y + 1 * step + 9:.1f}" fill="#8b949e" font-size="10px">Mon</text>',
+                  f'<text x="22" y="{grid_y + 3 * step + 9:.1f}" fill="#8b949e" font-size="10px">Wed</text>',
+                  f'<text x="22" y="{grid_y + 5 * step + 9:.1f}" fill="#8b949e" font-size="10px">Fri</text>',
+              ]
+
+              kpis = [
+                  ("ANNUAL COMMITS", f"{total:,}", "#39d353"),
+                  ("ACTIVE STREAK", f"{current_streak} days", "#58a6ff"),
+                  ("RECORD STREAK", f"{longest_streak} days", "#d29922"),
+                  ("PEAK VELOCITY", f"{best_day} / day", "#bc8cff"),
+              ]
+              kpi_svg = []
+              card_w = 138
+              card_y = 184
+              for i, (label, val, accent) in enumerate(kpis):
+                  cx = 22 + i * (card_w + 10)
+                  kpi_svg.append(
+                      f'<g class="kpi" style="animation-delay:{0.42 + i * 0.08:.2f}s">'
+                      f'<rect x="{cx}" y="{card_y}" width="{card_w}" height="52" rx="8" fill="#121820" stroke="#21262d" stroke-width="1"/>'
+                      f'<line x1="{cx + 10}" y1="{card_y}" x2="{cx + 50}" y2="{card_y}" stroke="{accent}" stroke-width="2"/>'
+                      f'<text x="{cx + 12}" y="{card_y + 20}" fill="#8b949e" font-size="9px" font-weight="600">{label}</text>'
+                      f'<text x="{cx + 12}" y="{card_y + 40}" fill="{accent}" font-size="14.5px" font-weight="700">{val}</text>'
+                      f'</g>'
+                  )
+
+              sparkline_svg = build_sparkline(days, x0=624, y0=200, w=204, h=28)
+
+              legend_x = width - 150
               legend_cells = "".join(
-                  f'<rect x="{legend_x + 32 + i * 15}" y="{footer_y - 9}" width="11" height="11" rx="2" fill="{c}" />'
+                  f'<rect x="{legend_x + 28 + i * 13}" y="11" width="9.5" height="9.5" rx="2" fill="{c}" />'
                   for i, c in enumerate(PALETTE[:5])
               )
 
-              stats_line = (
-                  f'<text x="{pad_x}" y="{footer_y}">'
-                  f'<tspan fill="#39d353" font-weight="600">{total:,}</tspan> contributions · '
-                  f'Current streak: <tspan fill="#58a6ff" font-weight="600">{current_streak}d</tspan> · '
-                  f'Longest: <tspan fill="#c9d1d9" font-weight="600">{longest_streak}d</tspan> · '
-                  f'Best day: <tspan fill="#c9d1d9" font-weight="600">{best_day}</tspan>'
-                  f'</text>'
-              )
-
               svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+            <defs>
+              <linearGradient id="hm-bg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#141b24"/>
+                <stop offset="100%" stop-color="#0d1117"/>
+              </linearGradient>
+              <linearGradient id="spark-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#39d353" stop-opacity="0.35"/>
+                <stop offset="100%" stop-color="#39d353" stop-opacity="0.0"/>
+              </linearGradient>
+              <filter id="neon-glow" x="-40%" y="-40%" width="180%" height="180%">
+                <feDropShadow dx="0" dy="0" stdDeviation="1.8" flood-color="#39d353" flood-opacity="0.6"/>
+              </filter>
+            </defs>
             <style>
               text {{
                 font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-                font-size: 11.5px;
-                fill: #8b949e;
               }}
               .cell {{
                 opacity: 0;
-                transform: translateY(-6px);
-                animation: dropIn 0.35s ease-out forwards;
+                transform: translateY(-5px);
+                animation: dropIn 0.3s ease-out forwards;
+              }}
+              .kpi {{
+                opacity: 0;
+                transform: translateY(6px);
+                animation: dropIn 0.45s ease-out forwards;
               }}
               @keyframes dropIn {{
                 to {{ opacity: 1; transform: translateY(0); }}
               }}
             </style>
-            <rect width="{width}" height="{height}" rx="10" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
-            {"".join(rects)}
-            {stats_line}
-            <text x="{legend_x}" y="{footer_y}">Less</text>
+            <rect width="{width}" height="{height}" rx="12" fill="url(#hm-bg)" stroke="#30363d" stroke-width="1"/>
+            <path d="M 1 12 Q 1 1 12 1 L {width - 12} 1 Q {width - 1} 1 {width - 1} 12 L {width - 1} 32 L 1 32 Z" fill="#161b22"/>
+            <line x1="1" y1="32" x2="{width - 1}" y2="32" stroke="#30363d" stroke-width="1"/>
+            <circle cx="18" cy="16" r="5" fill="#ff5f56"/>
+            <circle cx="34" cy="16" r="5" fill="#ffbd2e"/>
+            <circle cx="50" cy="16" r="5" fill="#27c93f"/>
+            <text x="70" y="20" fill="#c9d1d9" font-size="11px" font-weight="600">hamoi1@github ~ $ ./contributions.sh --matrix --sparkline</text>
+            <text x="{legend_x}" y="19" fill="#8b949e" font-size="9.5px">Less</text>
             {legend_cells}
-            <text x="{legend_x + 112}" y="{footer_y}">More</text>
+            <text x="{legend_x + 96}" y="19" fill="#8b949e" font-size="9.5px">More</text>
+            {"".join(month_labels)}
+            {"".join(day_labels)}
+            {"".join(rects)}
+            {"".join(kpi_svg)}
+            {sparkline_svg}
+            <path d="M 1 {height - 20} L {width - 1} {height - 20} L {width - 1} {height - 12} Q {width - 1} {height - 1} {width - 12} {height - 1} L 12 {height - 1} Q 1 {height - 1} 1 {height - 12} Z" fill="#161b22"/>
+            <line x1="1" y1="{height - 20}" x2="{width - 1}" y2="{height - 20}" stroke="#30363d" stroke-width="1"/>
+            <text x="16" y="{height - 6}" fill="#39d353" font-size="9.5px" font-weight="600">● CRON: ACTIVE (DAILY 06:17 UTC)</text>
+            <text x="{width - 16}" y="{height - 6}" text-anchor="end" fill="#8b949e" font-size="9.5px">SOURCE: GITHUB GRAPH CALENDAR</text>
           </svg>'''
               with open("contrib-heatmap.svg", "w", encoding="utf-8") as f:
                   f.write(svg)
 
-          # ==========================================
-          # 3. GENERATE hamoi1-ascii.svg
-          # ==========================================
+          # =========================================================
+          # 3. GENERATE hamoi1-ascii.svg (LASER CURSOR + SCANLINE)
+          # =========================================================
           def build_ascii_svg():
-              width, height = 370, 360
+              width, height = 370, 430
               RAMP = " .`:-=+*cs#%@"
-              COLS, ROWS_CNT = 70, 40
+              COLS, ROWS_CNT = 64, 38
 
-              # Check if user uploaded a photo inside asstes/ or assets/ or root
               candidates = []
               for pattern in ["asstes/*.*", "assets/*.*", "photo.*", "avatar.*", "portrait.*"]:
                   for path in glob.glob(pattern):
@@ -278,6 +535,7 @@ jobs:
               if candidates:
                   img = Image.open(candidates[0]).convert("L")
                   img = ImageOps.autocontrast(img, cutoff=2)
+                  img = ImageEnhance.Contrast(img).enhance(1.35)
                   img = img.resize((COLS, ROWS_CNT), Image.Resampling.LANCZOS)
                   pixels = img.load()
                   for r in range(ROWS_CNT):
@@ -288,86 +546,142 @@ jobs:
                           row_chars.append(RAMP[min(idx, len(RAMP) - 1)])
                       ascii_lines.append("".join(row_chars).rstrip())
               else:
-                  # Fallback self-typing ASCII art if no photo is in asstes/ yet
                   ascii_lines = [
-                      "                                                                      ",
-                      "              .:+*%@@@@@@@@@@@@%*+:.                                  ",
-                      "           .=@@@@@@@@@@@@@@@@@@@@@@@@=.                               ",
-                      "         .#@@@@@@@@@@@@@@@@@@@@@@@@@@@@#.                             ",
-                      "        +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+                            ",
-                      "       *@@@@@@@@@#=:..........:=#@@@@@@@@@*                           ",
-                      "      =@@@@@@@+.                  .+@@@@@@@=                          ",
-                      "      @@@@@@@.                      .@@@@@@@                          ",
-                      "     .@@@@@@:    +#@@@@*  *@@@@#+    :@@@@@@.                         ",
-                      "     .@@@@@@    .@@@@@@@..@@@@@@@.    @@@@@@.                         ",
-                      "      @@@@@@:    +@@@@@*  *@@@@@+    :@@@@@@                          ",
-                      "      +@@@@@@.                      .@@@@@@+                          ",
-                      "       *@@@@@@:     .:======:.     :@@@@@@*                           ",
-                      "        +@@@@@@@:   .*@@@@@@*.   :@@@@@@@+                            ",
-                      "         .*@@@@@@@+..        ..+@@@@@@@*.                             ",
-                      "           .+@@@@@@@@@@@@@@@@@@@@@@@@+.                               ",
-                      "              :=*@@@@@@@@@@@@@@@@*=:                                  ",
-                      "            .:+*@@@@@@@@@@@@@@@@@@*+:.                                ",
-                      "         .=*@@@@@@@@@@@@@@@@@@@@@@@@@@*=.                             ",
-                      "       .*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*.                           ",
-                      "      +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+                          ",
-                      "     *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*                         ",
-                      "    ==========================================                        ",
-                      "     _   _    _    __  __  ___ ___ _                                  ",
-                      "    | | | |  / \\  |  \\/  |/ _ \\_ _/ |                                 ",
-                      "    | |_| | / _ \\ | |\\/| | | | | || |                                 ",
-                      "    |  _  |/ ___ \\| |  | | |_| | || |                                 ",
-                      "    |_| |_/_/   \\_\\_|  |_|\\___/___|_|                                 ",
-                      "                                                                      ",
-                      "    [ SYSTEM: MUHAMMAD ESMAEL // LARAVEL DEV ]                        ",
-                      "    [ STATUS: ONLINE & BUILDING              ]                        ",
+                      "              .:+*%@@@@@@@@@@@@%*+:.              ",
+                      "           .=@@@@@@@@@@@@@@@@@@@@@@@@=.           ",
+                      "         .#@@@@@@@@@@@@@@@@@@@@@@@@@@@@#.         ",
+                      "        +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+        ",
+                      "       *@@@@@@@@@#=:..........:=#@@@@@@@@@*       ",
+                      "      =@@@@@@@+.                  .+@@@@@@@=      ",
+                      "      @@@@@@@.                      .@@@@@@@      ",
+                      "     .@@@@@@:    +#@@@@*  *@@@@#+    :@@@@@@.     ",
+                      "     .@@@@@@     .@@@@@@@..@@@@@@@.    @@@@@@.     ",
+                      "      @@@@@@:    +@@@@@*  *@@@@@+    :@@@@@@      ",
+                      "      +@@@@@@.                      .@@@@@@+      ",
+                      "       *@@@@@@:     .:======:.     :@@@@@@*       ",
+                      "        +@@@@@@@:   .*@@@@@@*.   :@@@@@@@+        ",
+                      "         .*@@@@@@@+..        ..+@@@@@@@*.         ",
+                      "           .+@@@@@@@@@@@@@@@@@@@@@@@@+.           ",
+                      "             :=*@@@@@@@@@@@@@@@@*=:               ",
+                      "            .:+*@@@@@@@@@@@@@@@@@@*+:.            ",
+                      "         .=*@@@@@@@@@@@@@@@@@@@@@@@@@@*=.         ",
+                      "       .*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*.       ",
+                      "      +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+      ",
+                      "     *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*     ",
+                      "    ==========================================    ",
+                      "     _   _    _    __  __  ___ ___ _              ",
+                      "    | | | |  / \\  |  \\/  |/ _ \\_ _/ |             ",
+                      "    | |_| | / _ \\ | |\\/| | | | | || |             ",
+                      "    |  _  |/ ___ \\| |  | | |_| | || |             ",
+                      "    |_| |_/_/   \\_\\_|  |_|\\___/___|_|             ",
+                      "                                                  ",
+                      "    [ SYSTEM: MUHAMMAD ESMAEL // LARAVEL DEV ]    ",
+                      "    [ STATUS: ONLINE & BUILDING              ]    ",
                   ]
 
-              line_height = 8.0 if candidates else 10.2
-              font_size = 6.8 if candidates else 8.2
-              start_y = 22
-              start_x = 14
+              line_height = 8.8 if candidates else 10.8
+              font_size = 7.2 if candidates else 8.4
+              start_y = 52
+              start_x = 16
               row_duration = 0.05
 
               defs = []
               rows_svg = []
+              cursors_svg = []
+              active_row = 0
+
               for r, line_str in enumerate(ascii_lines):
                   if not line_str.strip():
                       continue
                   y = start_y + r * line_height
-                  begin_time = r * row_duration
+                  begin_time = active_row * row_duration
+                  active_row += 1
                   clip_id = f"clip-r{r}"
+                  max_w = width - 32
+
                   defs.append(
                       f'<clipPath id="{clip_id}">'
-                      f'<rect x="{start_x}" y="{y - 9}" width="0" height="{line_height + 3}">'
-                      f'<animate attributeName="width" from="0" to="{width - 24}" '
+                      f'<rect x="{start_x}" y="{y - line_height}" width="0" height="{line_height + 3}">'
+                      f'<animate attributeName="width" from="0" to="{max_w}" '
                       f'begin="{begin_time:.3f}s" dur="{row_duration:.3f}s" fill="freeze" />'
                       f'</rect></clipPath>'
                   )
-                  color = "#39d353" if (not candidates and r >= 23) else "#c9d1d9"
+
+                  color = "#c9d1d9"
+                  if not candidates:
+                      if 22 <= r <= 26:
+                          color = "#58a6ff"
+                      elif r >= 28:
+                          color = "#39d353"
+
                   rows_svg.append(
                       f'<text x="{start_x}" y="{y:.1f}" fill="{color}" clip-path="url(#{clip_id})" '
                       f'xml:space="preserve">{escape(line_str)}</text>'
                   )
 
+                  cursors_svg.append(
+                      f'<rect x="{start_x}" y="{y - line_height + 2:.1f}" width="6" height="{line_height - 1:.1f}" '
+                      f'fill="#39d353" opacity="0">'
+                      f'<animate attributeName="x" from="{start_x}" to="{width - 22}" '
+                      f'begin="{begin_time:.3f}s" dur="{row_duration:.3f}s" fill="freeze" />'
+                      f'<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.05;0.95;1" '
+                      f'begin="{begin_time:.3f}s" dur="{row_duration:.3f}s" fill="freeze" />'
+                      f'</rect>'
+                  )
+
+              total_scan_dur = max(active_row * row_duration, 1.2)
+              mode_label = "PORTRAIT MATRIX" if candidates else "TERMINAL EMBLEM"
+
               svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
-            <defs>{"".join(defs)}</defs>
+            <defs>
+              <linearGradient id="ascii-bg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#141b24"/>
+                <stop offset="100%" stop-color="#0d1117"/>
+              </linearGradient>
+              {"".join(defs)}
+            </defs>
             <style>
-              text {{
+              .art text {{
                 font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
                 font-size: {font_size}px;
               }}
+              .chrome {{
+                font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+              }}
             </style>
-            <rect width="{width}" height="{height}" rx="10" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
-            {"".join(rows_svg)}
+            <rect width="{width}" height="{height}" rx="12" fill="url(#ascii-bg)" stroke="#30363d" stroke-width="1"/>
+            <path d="M 1 12 Q 1 1 12 1 L {width - 12} 1 Q {width - 1} 1 {width - 1} 12 L {width - 1} 32 L 1 32 Z" fill="#161b22"/>
+            <line x1="1" y1="32" x2="{width - 1}" y2="32" stroke="#30363d" stroke-width="1"/>
+            <circle cx="18" cy="16" r="5" fill="#ff5f56"/>
+            <circle cx="34" cy="16" r="5" fill="#ffbd2e"/>
+            <circle cx="50" cy="16" r="5" fill="#27c93f"/>
+            <text class="chrome" x="{width // 2}" y="20" text-anchor="middle" fill="#8b949e" font-size="11px">ascii-render — {mode_label}</text>
+
+            <g class="art">
+              {"".join(rows_svg)}
+              {"".join(cursors_svg)}
+            </g>
+
+            <!-- Vertical Laser Scanline -->
+            <line x1="2" y1="34" x2="{width - 2}" y2="34" stroke="#39d353" stroke-width="1.2" opacity="0">
+              <animate attributeName="y1" from="36" to="{height - 26}" begin="0s" dur="{total_scan_dur:.2f}s" fill="freeze"/>
+              <animate attributeName="y2" from="36" to="{height - 26}" begin="0s" dur="{total_scan_dur:.2f}s" fill="freeze"/>
+              <animate attributeName="opacity" values="0;0.65;0.65;0" keyTimes="0;0.05;0.95;1" begin="0s" dur="{total_scan_dur:.2f}s" fill="freeze"/>
+            </line>
+
+            <path d="M 1 {height - 22} L {width - 1} {height - 22} L {width - 1} {height - 12} Q {width - 1} {height - 1} {width - 12} {height - 1} L 12 {height - 1} Q 1 {height - 1} 1 {height - 12} Z" fill="#161b22"/>
+            <line x1="1" y1="{height - 22}" x2="{width - 1}" y2="{height - 22}" stroke="#30363d" stroke-width="1"/>
+            <text class="chrome" x="14" y="{height - 7}" fill="#39d353" font-size="10px" font-weight="600">● RENDER COMPLETE</text>
+            <text class="chrome" x="{width - 14}" y="{height - 7}" text-anchor="end" fill="#8b949e" font-size="10px">SMIL 1.1</text>
           </svg>'''
               with open("hamoi1-ascii.svg", "w", encoding="utf-8") as f:
                   f.write(svg)
 
-          build_info_card()
+          telemetry = fetch_profile_telemetry()
+          build_info_card(telemetry)
           build_heatmap()
           build_ascii_svg()
-          print("Successfully generated all 3 SVGs!")
+          print("Successfully generated all 3 Pro TUI SVGs!")
           EOF
 
       - name: Commit and push generated SVGs
