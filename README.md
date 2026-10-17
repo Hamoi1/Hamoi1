@@ -1,12 +1,8 @@
 <div align="center">
 
-<h3><code>hamoi1@github ~ $ ./contributions.sh</code></h3>
-
 <img src="./contrib-heatmap.svg" width="860" alt="Muhammad Esmael Contribution Heatmap" />
 
 <br><br>
-
-<h3><code>hamoi1@github ~ $ whoami</code></h3>
 
 <table>
   <tr>
@@ -17,8 +13,16 @@
 
 <br>
 
-<h3><code>hamoi1@github ~ $ ./connect.sh</code></h3>
+<!-- Tech Stack Dock -->
+<div align="center">
+  <img src="https://skillicons.dev/icons?i=php,laravel,tailwind,js,alpinejs,mysql,python,git,github,vscode,html,css&theme=dark" height="42" alt="Tech Stack" />
+  <img width="8" />
+  <img src="https://cdn.simpleicons.org/postman/FF6C37" height="40" alt="Postman" />
+</div>
 
+<br>
+
+<!-- Social Links & Views -->
 <p align="center">
   <a href="https://www.facebook.com/CodeMuhammed" target="_blank">
     <img src="https://img.shields.io/static/v1?message=Facebook&logo=facebook&label=&color=161b22&logoColor=1877F2&labelColor=0d1117&style=for-the-badge" height="28" alt="Facebook" />
@@ -35,6 +39,17 @@
   <a href="https://t.me/Mohammed_devv" target="_blank">
     <img src="https://img.shields.io/static/v1?message=Telegram&logo=telegram&label=&color=161b22&logoColor=2CA5E0&labelColor=0d1117&style=for-the-badge" height="28" alt="Telegram" />
   </a>
+  <img src="https://komarev.com/ghpvc/?username=hamoi1&label=VIEWS&color=238636&labelColor=161b22&style=for-the-badge" height="28" alt="Profile views" />
 </p>
+
+<details>
+  <summary><code>hamoi1@github ~ $ ./arcade-mode.sh --pacman</code></summary>
+  <br>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Hamoi1/Hamoi1/output/pacman-contribution-graph-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/Hamoi1/Hamoi1/output/pacman-contribution-graph.svg">
+    <img alt="pacman contribution graph" src="https://raw.githubusercontent.com/Hamoi1/Hamoi1/output/pacman-contribution-graph.svg" width="860">
+  </picture>
+</details>
 
 </div>
