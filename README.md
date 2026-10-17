@@ -27,7 +27,7 @@
   <a href="https://www.facebook.com/CodeMuhammed" target="_blank">
     <img src="https://img.shields.io/static/v1?message=Facebook&logo=facebook&label=&color=161b22&logoColor=1877F2&labelColor=0d1117&style=for-the-badge" height="28" alt="Facebook" />
   </a>
-  <a href="https://www.linkedin.com/in/muhammad-ismail-640b26284/" target="_blank">
+  <a href="https://www.linkedin.com/in/muhammad-esmail-640b26284" target="_blank">
     <img src="https://img.shields.io/static/v1?message=LinkedIn&logo=linkedin&label=&color=161b22&logoColor=0A66C2&labelColor=0d1117&style=for-the-badge" height="28" alt="LinkedIn" />
   </a>
   <a href="mailto:ihama9728@gmail.com" target="_blank">
