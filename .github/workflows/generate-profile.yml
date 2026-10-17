@@ -1,0 +1,378 @@
+name: Generate Animated Profile SVGs
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "*.svg"
+
+permissions:
+  contents: write
+
+jobs:
+  build-svgs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 pillow
+
+      - name: Generate contrib-heatmap.svg, info-card.svg, and hamoi1-ascii.svg
+        run: |
+          python3 - << 'EOF'
+          import glob
+          import re
+          from datetime import datetime, timedelta
+          from html import escape
+          import requests
+          from bs4 import BeautifulSoup
+          from PIL import Image, ImageOps
+
+          USERNAME = "Hamoi1"
+
+          # ==========================================
+          # 1. GENERATE info-card.svg (Neofetch Card)
+          # ==========================================
+          ROWS = [
+              ("Name", "Muhammad Esmael"),
+              ("Role", "Full-Stack Developer | Laravel Developer"),
+              ("Backend", "PHP · Laravel · Livewire · Python · MySQL"),
+              ("Frontend", "HTML5 · CSS3 · Tailwind CSS · JS · Alpine.js"),
+              ("Tools", "Git · GitHub · Postman · VS Code · Docker"),
+              ("Packages", "laravel-fib-integration · livewire-state-manager"),
+              ("Contact", "ihama9728@gmail.com · t.me/Mohammed_devv"),
+          ]
+
+          HIGHLIGHTS = [
+              "› Turning ideas into functional code",
+              "› Building scalable web solutions",
+              "› Passionate about clean architecture",
+          ]
+
+          def build_info_card():
+              width, height = 490, 360
+              lines_svg = []
+              delay = 0.12
+
+              lines_svg.append(
+                  '<circle cx="24" cy="24" r="5" fill="#ff5f56"/>'
+                  '<circle cx="40" cy="24" r="5" fill="#ffbd2e"/>'
+                  '<circle cx="56" cy="24" r="5" fill="#27c93f"/>'
+                  '<text x="74" y="28" fill="#8b949e" font-size="11.5px">muhammad@hamoi1: ~ (zsh)</text>'
+              )
+
+              lines_svg.append(
+                  f'<text x="24" y="60" class="line" style="animation-delay:{delay:.2f}s">'
+                  f'<tspan fill="#39d353" font-weight="700">muhammad</tspan>'
+                  f'<tspan fill="#8b949e">@</tspan>'
+                  f'<tspan fill="#39d353" font-weight="700">hamoi1</tspan>'
+                  f'</text>'
+              )
+              delay += 0.08
+              lines_svg.append(
+                  f'<text x="24" y="76" class="line" fill="#30363d" style="animation-delay:{delay:.2f}s">'
+                  f'──────────────────────────────────────────</text>'
+              )
+
+              y = 100
+              for key, val in ROWS:
+                  delay += 0.11
+                  lines_svg.append(
+                      f'<text x="24" y="{y}" class="line" style="animation-delay:{delay:.2f}s">'
+                      f'<tspan fill="#58a6ff" font-weight="600">{escape(key)}:</tspan> '
+                      f'<tspan fill="#c9d1d9">{escape(val)}</tspan>'
+                      f'</text>'
+                  )
+                  y += 22
+
+              y += 6
+              delay += 0.11
+              lines_svg.append(
+                  f'<text x="24" y="{y}" class="line" fill="#39d353" font-weight="600" '
+                  f'style="animation-delay:{delay:.2f}s">Focus &amp; Philosophy</text>'
+              )
+              y += 20
+
+              for item in HIGHLIGHTS:
+                  delay += 0.11
+                  lines_svg.append(
+                      f'<text x="24" y="{y}" class="line" fill="#8b949e" '
+                      f'style="animation-delay:{delay:.2f}s">{escape(item)}</text>'
+                  )
+                  y += 19
+
+              swatches = ["#161b22", "#ff7b72", "#39d353", "#d29922", "#58a6ff", "#bc8cff", "#39c5cf", "#c9d1d9"]
+              delay += 0.14
+              swatch_rects = "".join(
+                  f'<rect x="{24 + i * 22}" y="{height - 26}" width="16" height="10" rx="2" fill="{c}" />'
+                  for i, c in enumerate(swatches)
+              )
+              lines_svg.append(f'<g class="line" style="animation-delay:{delay:.2f}s">{swatch_rects}</g>')
+
+              svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+            <style>
+              text {{
+                font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+                font-size: 12.2px;
+              }}
+              .line {{
+                opacity: 0;
+                transform: translateY(6px);
+                animation: fadeSlide 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+              }}
+              @keyframes fadeSlide {{
+                to {{ opacity: 1; transform: translateY(0); }}
+              }}
+            </style>
+            <rect width="{width}" height="{height}" rx="10" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+            {"".join(lines_svg)}
+          </svg>'''
+              with open("info-card.svg", "w", encoding="utf-8") as f:
+                  f.write(svg)
+
+          # ==========================================
+          # 2. GENERATE contrib-heatmap.svg
+          # ==========================================
+          def build_heatmap():
+              url = f"https://github.com/users/{USERNAME}/contributions"
+              headers = {"User-Agent": "Mozilla/5.0"}
+              days = []
+              try:
+                  resp = requests.get(url, headers=headers, timeout=20)
+                  soup = BeautifulSoup(resp.text, "html.parser")
+                  for td in soup.find_all("td", class_="ContributionCalendar-day"):
+                      date_str = td.get("data-date")
+                      level_str = td.get("data-level", "0")
+                      if not date_str:
+                          continue
+                      cell_id = td.get("id")
+                      count = 0
+                      if cell_id:
+                          tip = soup.find("tool-tip", attrs={"for": cell_id})
+                          if tip and tip.text:
+                              m = re.search(r"(\d+)\s+contribution", tip.text.replace(",", ""))
+                              if m:
+                                  count = int(m.group(1))
+                      level = int(level_str)
+                      if count == 0 and level > 0:
+                          count = level
+                      days.append({"date": date_str, "level": level, "count": count})
+              except Exception as e:
+                  print("Heatmap fetch warning:", e)
+
+              if not days:
+                  today = datetime.utcnow().date()
+                  start = today - timedelta(days=364)
+                  days = [{"date": (start + timedelta(days=i)).isoformat(), "level": 0, "count": 0} for i in range(365)]
+
+              days.sort(key=lambda d: d["date"])
+              total = sum(d["count"] for d in days)
+
+              longest_streak, current_streak, running, best_day = 0, 0, 0, 0
+              for d in days:
+                  best_day = max(best_day, d["count"])
+                  if d["level"] > 0 or d["count"] > 0:
+                      running += 1
+                      longest_streak = max(longest_streak, running)
+                  else:
+                      running = 0
+
+              check_days = days[:-1] if days and days[-1]["level"] == 0 else days
+              for d in reversed(check_days):
+                  if d["level"] > 0 or d["count"] > 0:
+                      current_streak += 1
+                  else:
+                      break
+
+              PALETTE = ["#161b22", "#0e4429", "#006d32", "#26a641", "#39d353", "#69f0a0"]
+              cell_size, gap = 12, 3
+              step = cell_size + gap
+              pad_x, pad_y = 32, 26
+              width, height = 860, 172
+
+              rects = []
+              week = 0
+              for idx, day in enumerate(days):
+                  dt = datetime.strptime(day["date"], "%Y-%m-%d")
+                  dow = (dt.weekday() + 1) % 7
+                  if idx > 0 and dow == 0:
+                      week += 1
+                  x = pad_x + week * step
+                  y = pad_y + dow * step
+                  level = min(max(day.get("level", 0), 0), len(PALETTE) - 1)
+                  color = PALETTE[level]
+                  delay = (week * 0.016) + (dow * 0.025)
+                  rects.append(
+                      f'<rect class="cell" x="{x}" y="{y}" width="{cell_size}" height="{cell_size}" '
+                      f'rx="2.5" fill="{color}" style="animation-delay:{delay:.2f}s" />'
+                  )
+
+              legend_x = width - 155
+              footer_y = height - 20
+              legend_cells = "".join(
+                  f'<rect x="{legend_x + 32 + i * 15}" y="{footer_y - 9}" width="11" height="11" rx="2" fill="{c}" />'
+                  for i, c in enumerate(PALETTE[:5])
+              )
+
+              stats_line = (
+                  f'<text x="{pad_x}" y="{footer_y}">'
+                  f'<tspan fill="#39d353" font-weight="600">{total:,}</tspan> contributions · '
+                  f'Current streak: <tspan fill="#58a6ff" font-weight="600">{current_streak}d</tspan> · '
+                  f'Longest: <tspan fill="#c9d1d9" font-weight="600">{longest_streak}d</tspan> · '
+                  f'Best day: <tspan fill="#c9d1d9" font-weight="600">{best_day}</tspan>'
+                  f'</text>'
+              )
+
+              svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+            <style>
+              text {{
+                font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+                font-size: 11.5px;
+                fill: #8b949e;
+              }}
+              .cell {{
+                opacity: 0;
+                transform: translateY(-6px);
+                animation: dropIn 0.35s ease-out forwards;
+              }}
+              @keyframes dropIn {{
+                to {{ opacity: 1; transform: translateY(0); }}
+              }}
+            </style>
+            <rect width="{width}" height="{height}" rx="10" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+            {"".join(rects)}
+            {stats_line}
+            <text x="{legend_x}" y="{footer_y}">Less</text>
+            {legend_cells}
+            <text x="{legend_x + 112}" y="{footer_y}">More</text>
+          </svg>'''
+              with open("contrib-heatmap.svg", "w", encoding="utf-8") as f:
+                  f.write(svg)
+
+          # ==========================================
+          # 3. GENERATE hamoi1-ascii.svg
+          # ==========================================
+          def build_ascii_svg():
+              width, height = 370, 360
+              RAMP = " .`:-=+*cs#%@"
+              COLS, ROWS_CNT = 70, 40
+
+              # Check if user uploaded a photo inside asstes/ or assets/ or root
+              candidates = []
+              for pattern in ["asstes/*.*", "assets/*.*", "photo.*", "avatar.*", "portrait.*"]:
+                  for path in glob.glob(pattern):
+                      if path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+                          candidates.append(path)
+
+              ascii_lines = []
+              if candidates:
+                  img = Image.open(candidates[0]).convert("L")
+                  img = ImageOps.autocontrast(img, cutoff=2)
+                  img = img.resize((COLS, ROWS_CNT), Image.Resampling.LANCZOS)
+                  pixels = img.load()
+                  for r in range(ROWS_CNT):
+                      row_chars = []
+                      for c in range(COLS):
+                          val = pixels[c, r]
+                          idx = int((255 - val) / 256 * len(RAMP))
+                          row_chars.append(RAMP[min(idx, len(RAMP) - 1)])
+                      ascii_lines.append("".join(row_chars).rstrip())
+              else:
+                  # Fallback self-typing ASCII art if no photo is in asstes/ yet
+                  ascii_lines = [
+                      "                                                                      ",
+                      "              .:+*%@@@@@@@@@@@@%*+:.                                  ",
+                      "           .=@@@@@@@@@@@@@@@@@@@@@@@@=.                               ",
+                      "         .#@@@@@@@@@@@@@@@@@@@@@@@@@@@@#.                             ",
+                      "        +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+                            ",
+                      "       *@@@@@@@@@#=:..........:=#@@@@@@@@@*                           ",
+                      "      =@@@@@@@+.                  .+@@@@@@@=                          ",
+                      "      @@@@@@@.                      .@@@@@@@                          ",
+                      "     .@@@@@@:    +#@@@@*  *@@@@#+    :@@@@@@.                         ",
+                      "     .@@@@@@    .@@@@@@@..@@@@@@@.    @@@@@@.                         ",
+                      "      @@@@@@:    +@@@@@*  *@@@@@+    :@@@@@@                          ",
+                      "      +@@@@@@.                      .@@@@@@+                          ",
+                      "       *@@@@@@:     .:======:.     :@@@@@@*                           ",
+                      "        +@@@@@@@:   .*@@@@@@*.   :@@@@@@@+                            ",
+                      "         .*@@@@@@@+..        ..+@@@@@@@*.                             ",
+                      "           .+@@@@@@@@@@@@@@@@@@@@@@@@+.                               ",
+                      "              :=*@@@@@@@@@@@@@@@@*=:                                  ",
+                      "            .:+*@@@@@@@@@@@@@@@@@@*+:.                                ",
+                      "         .=*@@@@@@@@@@@@@@@@@@@@@@@@@@*=.                             ",
+                      "       .*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*.                           ",
+                      "      +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+                          ",
+                      "     *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*                         ",
+                      "    ==========================================                        ",
+                      "     _   _    _    __  __  ___ ___ _                                  ",
+                      "    | | | |  / \\  |  \\/  |/ _ \\_ _/ |                                 ",
+                      "    | |_| | / _ \\ | |\\/| | | | | || |                                 ",
+                      "    |  _  |/ ___ \\| |  | | |_| | || |                                 ",
+                      "    |_| |_/_/   \\_\\_|  |_|\\___/___|_|                                 ",
+                      "                                                                      ",
+                      "    [ SYSTEM: MUHAMMAD ESMAEL // LARAVEL DEV ]                        ",
+                      "    [ STATUS: ONLINE & BUILDING              ]                        ",
+                  ]
+
+              line_height = 8.0 if candidates else 10.2
+              font_size = 6.8 if candidates else 8.2
+              start_y = 22
+              start_x = 14
+              row_duration = 0.05
+
+              defs = []
+              rows_svg = []
+              for r, line_str in enumerate(ascii_lines):
+                  if not line_str.strip():
+                      continue
+                  y = start_y + r * line_height
+                  begin_time = r * row_duration
+                  clip_id = f"clip-r{r}"
+                  defs.append(
+                      f'<clipPath id="{clip_id}">'
+                      f'<rect x="{start_x}" y="{y - 9}" width="0" height="{line_height + 3}">'
+                      f'<animate attributeName="width" from="0" to="{width - 24}" '
+                      f'begin="{begin_time:.3f}s" dur="{row_duration:.3f}s" fill="freeze" />'
+                      f'</rect></clipPath>'
+                  )
+                  color = "#39d353" if (not candidates and r >= 23) else "#c9d1d9"
+                  rows_svg.append(
+                      f'<text x="{start_x}" y="{y:.1f}" fill="{color}" clip-path="url(#{clip_id})" '
+                      f'xml:space="preserve">{escape(line_str)}</text>'
+                  )
+
+              svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+            <defs>{"".join(defs)}</defs>
+            <style>
+              text {{
+                font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+                font-size: {font_size}px;
+              }}
+            </style>
+            <rect width="{width}" height="{height}" rx="10" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+            {"".join(rows_svg)}
+          </svg>'''
+              with open("hamoi1-ascii.svg", "w", encoding="utf-8") as f:
+                  f.write(svg)
+
+          build_info_card()
+          build_heatmap()
+          build_ascii_svg()
+          print("Successfully generated all 3 SVGs!")
+          EOF
+
+      - name: Commit and push generated SVGs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add contrib-heatmap.svg info-card.svg hamoi1-ascii.svg
+          git diff --cached --quiet || (git commit -m "chore: generate animated profile SVGs [skip ci]" && git push)
