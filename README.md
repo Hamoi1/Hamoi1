@@ -1,98 +1,40 @@
 <div align="center">
-  <img height="200" src="https://repository-images.githubusercontent.com/588181932/e36ec678-7984-4cdd-8e4c-a3932772ff8e"  />
-</div>
-<h1 align="center">Hi 👋, I'm Muhammad Esmael</h1>
-<h3 align="center">Full-Stack Developer | Laravel Developer</h3>
+
+<h3><code>hamoi1@github ~ $ ./contributions.sh</code></h3>
+
+<img src="./contrib-heatmap.svg" width="860" alt="Muhammad Esmael Contribution Heatmap" />
+
+<br><br>
+
+<h3><code>hamoi1@github ~ $ whoami</code></h3>
+
+<table>
+  <tr>
+    <td valign="top"><img src="./hamoi1-ascii.svg" width="370" alt="Muhammad Esmael ASCII Portrait" /></td>
+    <td valign="top"><img src="./info-card.svg" width="490" alt="Muhammad Esmael Neofetch Info Card" /></td>
+  </tr>
+</table>
+
+<br>
+
+<h3><code>hamoi1@github ~ $ ./connect.sh</code></h3>
 
 <p align="center">
-  <a href="https://git.io/typing-svg">
-    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=27&duration=4000&pause=1000&color=58A6FF&center=true&vCenter=true&width=700&lines=Turning+ideas+into+functional+code+;Building+scalable+web+solutions;Passionate+about+clean+architecture" alt="Typing SVG" height="200" /></a>
-</p>
-
-<p align="center">
-  <img src="https://komarev.com/ghpvc/?username=hamoi1&label=Profile%20views&color=0e75b6&style=flat" height="30" alt="hamoi1" /> 
-</p>
-
----
-<br clear="both">
-
-
-###
-
-<div align="center">
-  <img src="https://skillicons.dev/icons?i=html" height="45" alt="html5 logo"  />
-  <img width="10" />
-  <img src="https://skillicons.dev/icons?i=css" height="45" alt="css logo"  />
-  <img width="10" />
-  <img src="https://skillicons.dev/icons?i=tailwind" height="45" alt="tailwindcss logo"  />
-  <img width="10" />
-  <img src="https://skillicons.dev/icons?i=js" height="45" alt="javascript logo"  />
-  <img width="10" />
-  <img src="https://skillicons.dev/icons?i=alpinejs" height="45" alt="alpinelinux logo"  />
-  <img width="10" />
-  <img src="https://skillicons.dev/icons?i=php" height="45" alt="php logo"  />
-  <img width="10" />
-  <img src="https://skillicons.dev/icons?i=laravel" height="45" alt="laravel logo"  />
-  <img width="10" />
-  <img src="https://skillicons.dev/icons?i=mysql" height="45" alt="mysql logo"  />
-  <img width="10" />
-  <img src="https://cdn.simpleicons.org/postman/FF6C37" height="45" alt="postman logo"  />
-  <img width="10" />
-  <img src="https://skillicons.dev/icons?i=git" height="45" alt="git logo"  />
-  <img width="10" />
-  <img src="https://skillicons.dev/icons?i=github" height="45" alt="github logo"  />
-  <img width="10" />
-  <img src="https://skillicons.dev/icons?i=vscode" height="45" alt="vscode logo"  />
-  <img width="10" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" height="45" alt="python logo"  />
-</div>
-
-###
-
-<br clear="both">
-
-<div align="center">
   <a href="https://www.facebook.com/CodeMuhammed" target="_blank">
-    <img src="https://img.shields.io/static/v1?message=Facebook&logo=facebook&label=&color=1877F2&logoColor=white&labelColor=&style=for-the-badge" height="25" alt="facebook logo"  />
+    <img src="https://img.shields.io/static/v1?message=Facebook&logo=facebook&label=&color=161b22&logoColor=1877F2&labelColor=0d1117&style=for-the-badge" height="28" alt="Facebook" />
   </a>
   <a href="https://www.linkedin.com/in/muhammad-ismail-640b26284/" target="_blank">
-    <img src="https://img.shields.io/static/v1?message=LinkedIn&logo=linkedin&label=&color=0077B5&logoColor=white&labelColor=&style=for-the-badge" height="25" alt="linkedin logo"  />
+    <img src="https://img.shields.io/static/v1?message=LinkedIn&logo=linkedin&label=&color=161b22&logoColor=0A66C2&labelColor=0d1117&style=for-the-badge" height="28" alt="LinkedIn" />
   </a>
   <a href="mailto:ihama9728@gmail.com" target="_blank">
-    <img src="https://img.shields.io/static/v1?message=Gmail&logo=gmail&label=&color=D14836&logoColor=white&labelColor=&style=for-the-badge" height="25" alt="gmail logo"  />
+    <img src="https://img.shields.io/static/v1?message=Gmail&logo=gmail&label=&color=161b22&logoColor=EA4335&labelColor=0d1117&style=for-the-badge" height="28" alt="Gmail" />
   </a>
-  <img src="https://img.shields.io/static/v1?message=Instagram&logo=instagram&label=&color=E4405F&logoColor=white&labelColor=&style=for-the-badge" height="25" alt="instagram logo"  />
   <a href="https://wa.me/9647501842910" target="_blank">
-    <img src="https://img.shields.io/static/v1?message=Whatsapp&logo=whatsapp&label=&color=25D366&logoColor=white&labelColor=&style=for-the-badge" height="25" alt="whatsapp logo"  />
+    <img src="https://img.shields.io/static/v1?message=WhatsApp&logo=whatsapp&label=&color=161b22&logoColor=25D366&labelColor=0d1117&style=for-the-badge" height="28" alt="WhatsApp" />
   </a>
   <a href="https://t.me/Mohammed_devv" target="_blank">
-    <img src="https://img.shields.io/static/v1?message=Telegram&logo=telegram&label=&color=2CA5E0&logoColor=white&labelColor=&style=for-the-badge" height="25" alt="telegram logo"  />
+    <img src="https://img.shields.io/static/v1?message=Telegram&logo=telegram&label=&color=161b22&logoColor=2CA5E0&labelColor=0d1117&style=for-the-badge" height="28" alt="Telegram" />
   </a>
+</p>
+
 </div>
-
-###
-
-<br clear="both">
-
-<div align="center">
-  <img src="https://github-readme-stats-fast.vercel.app/api?username=Hamoi1&show_icons=true&theme=tokyonight" height="150"  alt="streak graph"  />
-  <img src="https://github-readme-stats-fast.vercel.app/api/streak?username=Hamoi1&theme=tokyonight" height="150" alt="trophy graph"  />
-  <img src="https://github-readme-stats-fast.vercel.app/api/top-langs/?username=Hamoi1&layout=compact&theme=tokyonight" height="306" alt="activity-graph graph"  />
-</div>
-
-<div align="center">
-  <a href="https://stats.hyo.dev/stats/Hamoi1"><img src="https://stats.hyo.dev/api/github-stats-advanced?login=Hamoi1" width="100%" /></a>
-</div>
-<div align="center">
-  <img src="https://github-readme-activity-graph.vercel.app/graph?username=Hamoi1&radius=30&theme=dracula&area=true&order=5" height="406" alt="activity-graph graph"  />
-</div>
-
-###
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Hamoi1/Hamoi1/output/pacman-contribution-graph-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/Hamoi1/Hamoi1/output/pacman-contribution-graph.svg">
-  <img alt="pacman contribution graph" src="https://raw.githubusercontent.com/Hamoi1/Hamoi1/output/pacman-contribution-graph.svg">
-</picture>
-
-###
